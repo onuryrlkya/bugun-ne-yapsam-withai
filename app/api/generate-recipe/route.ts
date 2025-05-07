@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     console.log("Initializing OpenAI client with OpenRouter")
     const client = new OpenAI({
       baseURL: "https://openrouter.ai/api/v1",
-      apiKey: "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",
+      apiKey: "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",
     })
 
     const prompt = `
