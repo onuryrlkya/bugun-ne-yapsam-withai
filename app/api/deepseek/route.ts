@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server"
 
+// OpenRouter API endpoint
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+// DeepSeek model identifier
+const DEEPSEEK_MODEL = "deepseek/deepseek-r1:free"
+
 export async function POST(request: Request) {
   try {
     // Parse the request body
@@ -71,17 +76,17 @@ Lütfen sadece verdiğim malzemeleri kullanarak yapılabilecek bir yemek planı 
 `
     }
 
-    // Dokümantasyondaki gibi tam olarak API çağrısını yapıyoruz
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    // Prepare the request to OpenRouter API
+    const response = await fetch(OPENROUTER_API_URL, {
       method: "POST",
       headers: {
-        Authorization: "Bearer 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",
-        "HTTP-Referer": "https://bugun-ne-yapsam-ai.vercel.app",
+        Authorization: "Bearer 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",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://bugun-ne-yapsam-ai.vercel.app",
         "X-Title": "Bugün Ne Yapsam AI",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1-zero:free",
+        model: DEEPSEEK_MODEL,
         messages: [
           {
             role: "system",
@@ -96,26 +101,26 @@ Lütfen sadece verdiğim malzemeleri kullanarak yapılabilecek bir yemek planı 
       }),
     })
 
-    // Yanıtı kontrol et
+    // Check if the response is successful
     if (!response.ok) {
-      console.error(`API error: ${response.status} ${response.statusText}`)
-      const errorText = await response.text()
-      console.error("Error details:", errorText)
+      const errorData = await response.text()
+      console.error("OpenRouter API error:", errorData)
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: `API isteği başarısız oldu: ${response.status} ${response.statusText}`,
-        },
-        { status: response.status },
-      )
+      let errorMessage = "Tarif oluşturulurken bir hata oluştu."
+
+      if (response.status === 401 || response.status === 403) {
+        errorMessage = "API yetkilendirme hatası. Lütfen sistem yöneticisiyle iletişime geçin."
+      } else if (response.status === 429) {
+        errorMessage = "Çok fazla istek gönderildi. Lütfen birkaç dakika bekleyip tekrar deneyin."
+      }
+
+      return NextResponse.json({ success: false, error: errorMessage }, { status: response.status })
     }
 
-    // Yanıtı işle
+    // Parse the response
     const data = await response.json()
-    console.log("API response:", JSON.stringify(data, null, 2))
 
-    // Yanıttan tarif metnini çıkar
+    // Extract the recipe text from the response
     const recipeText = data.choices?.[0]?.message?.content
 
     if (!recipeText) {
@@ -127,10 +132,11 @@ Lütfen sadece verdiğim malzemeleri kullanarak yapılabilecek bir yemek planı 
   } catch (error: any) {
     console.error("Recipe generation error:", error)
 
+    // Provide a generic error message
     return NextResponse.json(
       {
         success: false,
-        error: `Tarif oluşturulurken bir hata oluştu: ${error.message || "Bilinmeyen hata"}`,
+        error: "Tarif oluşturulurken bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
       },
       { status: 500 },
     )
