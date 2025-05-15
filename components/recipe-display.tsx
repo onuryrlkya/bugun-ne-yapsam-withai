@@ -3,16 +3,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useState, useEffect } from "react"
 import ReactMarkdown from "react-markdown"
-import { Printer, Share2, BookmarkPlus, ThumbsUp } from "lucide-react"
+import { Printer, Share2, BookmarkPlus, ThumbsUp, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { GenerationType } from "@/app/actions/generate-recipe-deepseek"
 
 interface RecipeDisplayProps {
   recipe: string
   type: GenerationType
+  isDemoMode?: boolean
+  apiProvider?: string
 }
 
-export function RecipeDisplay({ recipe, type }: RecipeDisplayProps) {
+export function RecipeDisplay({
+  recipe,
+  type,
+  isDemoMode = false,
+  apiProvider = "Bugün Ne Yapsam AI",
+}: RecipeDisplayProps) {
   const [mounted, setMounted] = useState(false)
   const [renderError, setRenderError] = useState<string | null>(null)
   const [bookmarked, setBookmarked] = useState(false)
@@ -58,7 +65,9 @@ export function RecipeDisplay({ recipe, type }: RecipeDisplayProps) {
       <CardHeader className="bg-gradient-to-r from-orange-600 to-amber-500 text-white">
         <div className="flex justify-between items-center">
           <CardTitle className="text-xl md:text-2xl flex items-center">
-            {type === "recipe" ? "Bugün Ne Yapsam AI Tarifi" : "Bugün Ne Yapsam AI Yemek Planı"}
+            {isDemoMode && <AlertCircle className="mr-2 h-5 w-5" />}
+            {type === "recipe" ? `${apiProvider} Tarifi` : `${apiProvider} Yemek Planı`}
+            {isDemoMode && <span className="ml-2 text-sm opacity-80">(Demo İçerik)</span>}
           </CardTitle>
           <div className="flex space-x-2">
             <Button
@@ -91,6 +100,15 @@ export function RecipeDisplay({ recipe, type }: RecipeDisplayProps) {
         </div>
       </CardHeader>
       <CardContent className="pt-6">
+        {isDemoMode && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-700 text-sm">
+            <p>
+              <strong>Demo İçerik:</strong> Bu içerik, API bağlantısı kurulamadığı için örnek veri olarak
+              gösterilmektedir. Gerçek API bağlantısı kurulduğunda, yapay zeka tarafından oluşturulan içerikler
+              görüntülenecektir.
+            </p>
+          </div>
+        )}
         {renderError ? (
           <div className="text-red-500">
             <p>Tarif görüntülenirken bir hata oluştu. Lütfen tekrar deneyin.</p>

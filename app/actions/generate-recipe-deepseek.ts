@@ -2,8 +2,8 @@
 
 export type GenerationType = "recipe" | "mealplan"
 
-// Yeni OpenRouter API anahtarı
-const OPENROUTER_API_KEY = "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"
+// OpenRouter API anahtarı
+const OPENROUTER_API_KEY = "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"
 
 export async function generateRecipe(ingredients: string, type: GenerationType = "recipe") {
   try {
@@ -19,9 +19,13 @@ export async function generateRecipe(ingredients: string, type: GenerationType =
 
     while (retryCount < maxRetries) {
       try {
+        // API isteği için detaylı log
+        console.log("API isteği gönderiliyor, deneme:", retryCount + 1)
+
         response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
+            // Authorization başlığı formatını düzelt
             Authorization: `Bearer ${OPENROUTER_API_KEY}`,
             "HTTP-Referer": "https://bugun-ne-yapsam-ai.vercel.app",
             "X-Title": "Bugün Ne Yapsam AI",
@@ -45,8 +49,15 @@ export async function generateRecipe(ingredients: string, type: GenerationType =
           signal: AbortSignal.timeout(30000),
         })
 
+        // Yanıt durumunu logla
+        console.log("API yanıt durumu:", response.status, response.statusText)
+
         // Başarılı yanıt aldıysak döngüden çık
         if (response.ok) break
+
+        // Yanıt başarısız ise detaylı bilgi al
+        const errorText = await response.text()
+        console.error("API hata yanıtı:", errorText)
 
         // Başarısız yanıt için hata fırlat
         throw new Error(`API isteği başarısız oldu: ${response.status} - ${response.statusText}`)
@@ -69,13 +80,29 @@ export async function generateRecipe(ingredients: string, type: GenerationType =
     }
 
     // Yanıtı işle
-    const data = await response.json()
-    console.log("API yanıtı alındı")
+    const responseText = await response.text()
+    console.log("API ham yanıtı:", responseText.substring(0, 200) + "...")
+
+    // Yanıt boş mu kontrol et
+    if (!responseText || !responseText.trim()) {
+      console.error("API boş yanıt döndürdü")
+      throw new Error("API'den boş yanıt alındı.")
+    }
+
+    // JSON ayrıştırma
+    let data
+    try {
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error("API yanıtı JSON olarak ayrıştırılamadı:", parseError, "Ham yanıt:", responseText)
+      throw new Error("API yanıtı geçerli bir JSON formatında değil.")
+    }
 
     // Yanıt içeriğini kontrol et
     const recipeText = data.choices?.[0]?.message?.content
 
     if (!recipeText) {
+      console.error("Geçersiz API yanıt formatı:", JSON.stringify(data).substring(0, 200) + "...")
       throw new Error("API'den geçerli bir yanıt alınamadı.")
     }
 
@@ -85,8 +112,16 @@ export async function generateRecipe(ingredients: string, type: GenerationType =
       type,
     }
   } catch (error) {
-    console.error("Tarif oluşturma hatası:", error)
-    throw error // Hatayı yukarı ilet, demo verisi göstermek istemiyoruz
+    // Hata nesnesini daha detaylı logla
+    console.error(
+      "Recipe generation error details:",
+      error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error),
+    )
+
+    // Hata mesajını güvenli bir şekilde çıkar
+    const errorMessage = error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu"
+
+    throw new Error(`Tarif oluşturulurken bir hata oluştu: ${errorMessage}`)
   }
 }
 

@@ -8,9 +8,62 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { generateRecipe, type GenerationType } from "@/app/actions/generate-recipe-deepseek"
+import { generateRecipeWithOpenAI } from "@/app/actions/generate-recipe-openai"
 import { Loader2, ChefHat, RefreshCw, Utensils, Calendar, AlertTriangle, Sparkles } from "lucide-react"
 import { RecipeDisplay } from "./recipe-display"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+
+// Demo verileri - API çalışmazsa kullanılacak
+const DEMO_RECIPES = {
+  recipe: `## Makarna Salatası
+
+### Malzemeler
+- 200g makarna (herhangi bir çeşit)
+- 2 adet domates
+- 1 adet soğan
+- 2 yemek kaşığı zeytinyağı
+- 1 diş sarımsak
+- Tuz ve karabiber
+
+### Hazırlanışı
+1. Makarnayı paketteki talimatlara göre haşlayın.
+2. Domatesleri küp küp doğrayın.
+3. Soğanı ince ince kıyın.
+4. Sarımsağı ezin.
+5. Haşlanmış makarnayı süzün ve soğuk su altında yıkayın.
+6. Tüm malzemeleri bir kapta karıştırın.
+7. Zeytinyağı, tuz ve karabiber ekleyerek harmanlayın.
+
+### Püf Noktaları
+- Makarnayı al dente pişirirseniz salata daha lezzetli olur.
+- Servis etmeden önce 30 dakika buzdolabında bekletirseniz lezzeti artar.
+
+### Hazırlama Süresi
+- Hazırlık: 10 dakika
+- Pişirme: 15 dakika
+- Toplam: 25 dakika`,
+  mealplan: `# Günlük Yemek Planı
+
+## Kahvaltı
+- Domates ve Soğanlı Yumurta
+- Domates ve soğanlar kavrulur, üzerine yumurta kırılarak pişirilir.
+- Kullanılan malzemeler: Domates, soğan, yumurta, zeytinyağı
+
+## Öğle Yemeği
+- Makarna Salatası
+- Haşlanmış makarna, doğranmış domates ve soğanla karıştırılır, zeytinyağı ile tatlandırılır.
+- Kullanılan malzemeler: Makarna, domates, soğan, zeytinyağı, sarımsak
+
+## Akşam Yemeği
+- Domates Soslu Makarna
+- Domates ve soğan ile hazırlanan sos ile servis edilen makarna.
+- Kullanılan malzemeler: Makarna, domates, soğan, sarımsak, zeytinyağı
+
+## Ara Öğün/Atıştırmalık
+- Domates ve Soğanlı Bruschetta
+- Doğranmış domates ve soğan karışımı, zeytinyağı ile tatlandırılarak ekmek üzerinde servis edilir.
+- Kullanılan malzemeler: Domates, soğan, zeytinyağı, ekmek`,
+}
 
 export function RecipeGenerator() {
   const [ingredients, setIngredients] = useState("")
@@ -18,6 +71,8 @@ export function RecipeGenerator() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generationType, setGenerationType] = useState<GenerationType>("recipe")
+  const [isDemoMode, setIsDemoMode] = useState(false)
+  const [apiProvider, setApiProvider] = useState("Bugün Ne Yapsam AI")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,24 +85,56 @@ export function RecipeGenerator() {
     setIsLoading(true)
     setError(null)
     setRecipe(null) // Clear any previous recipe
+    setIsDemoMode(false)
+    setApiProvider("Bugün Ne Yapsam AI")
 
     try {
       console.log("Tarif oluşturma isteği gönderiliyor...")
 
-      // Tarif oluştur
-      const result = await generateRecipe(ingredients, generationType)
-      console.log("Tarif oluşturma yanıtı alındı")
+      // Önce OpenRouter API'yi dene
+      try {
+        const result = await generateRecipe(ingredients, generationType)
+        console.log("Tarif oluşturma yanıtı alındı")
 
-      if (result.success && result.recipe) {
-        setRecipe(result.recipe)
-      } else {
-        setError("Tarif oluşturulurken bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
+        if (result.success && result.recipe) {
+          setRecipe(result.recipe)
+          return
+        }
+      } catch (openRouterError) {
+        console.error("OpenRouter API hatası:", openRouterError)
+
+        // OpenRouter başarısız olursa OpenAI'yi dene
+        try {
+          console.log("OpenAI API'ye geçiliyor...")
+          const openAIResult = await generateRecipeWithOpenAI(ingredients, generationType)
+
+          if (openAIResult.success && openAIResult.recipe) {
+            setRecipe(openAIResult.recipe)
+            setApiProvider("Bugün Ne Yapsam AI")
+            return
+          }
+        } catch (openAIError) {
+          console.error("OpenAI API hatası:", openAIError)
+          // OpenAI de başarısız olursa demo moduna geç
+        }
       }
+
+      // Tüm API'ler başarısız olursa demo moduna geç
+      console.log("Tüm API'ler başarısız oldu, demo moduna geçiliyor")
+      setRecipe(DEMO_RECIPES[generationType])
+      setIsDemoMode(true)
+      setApiProvider("Demo Mod")
+      setError("API'lere bağlanılamadı. Demo içerik gösteriliyor.")
     } catch (err) {
-      // Hata nesnesini güvenli bir şekilde işle
+      // Genel hata durumu
       const errorMessage = err instanceof Error ? err.message : "Bilinmeyen bir hata oluştu"
       console.error("Client error:", errorMessage)
-      setError(`Tarif oluşturulurken bir hata oluştu: ${errorMessage}. Lütfen daha sonra tekrar deneyin.`)
+
+      // Demo moduna geç
+      setRecipe(DEMO_RECIPES[generationType])
+      setIsDemoMode(true)
+      setApiProvider("Demo Mod")
+      setError(`Hata: ${errorMessage}. Demo içerik gösteriliyor.`)
     } finally {
       setIsLoading(false)
     }
@@ -57,6 +144,7 @@ export function RecipeGenerator() {
     setIngredients("")
     setRecipe(null)
     setError(null)
+    setIsDemoMode(false)
   }
 
   return (
@@ -112,9 +200,9 @@ export function RecipeGenerator() {
                     Ne kadar detaylı malzeme listesi verirseniz, o kadar iyi sonuçlar alırsınız.
                   </p>
                   {error && (
-                    <Alert variant="destructive" className="mt-2">
+                    <Alert variant={isDemoMode ? "default" : "destructive"} className="mt-2">
                       <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Hata</AlertTitle>
+                      <AlertTitle>{isDemoMode ? "Bilgi" : "Hata"}</AlertTitle>
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
@@ -172,7 +260,7 @@ export function RecipeGenerator() {
 
       {recipe && !isLoading && (
         <div className="mt-8">
-          <RecipeDisplay recipe={recipe} type={generationType} />
+          <RecipeDisplay recipe={recipe} type={generationType} isDemoMode={isDemoMode} apiProvider={apiProvider} />
         </div>
       )}
     </div>
