@@ -1,10 +1,15 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import type React from "react"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import Script from "next/script"
+
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: "Bugün Ne Yapsam AI",
+  description: "Yapay zeka destekli tarif asistanınız",
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -13,8 +18,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="tr">
+      <head>
+        {/* Puter.js script */}
+        <Script
+          src="https://js.puter.com/v2/"
+          strategy="beforeInteractive"
+          onError={() => console.error("Puter.js yüklenemedi")}
+          onLoad={() => console.log("Puter.js başarıyla yüklendi")}
+        />
+      </head>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }

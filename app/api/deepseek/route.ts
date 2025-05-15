@@ -80,7 +80,7 @@ Lütfen sadece verdiğim malzemeleri kullanarak yapılabilecek bir yemek planı 
     const response = await fetch(OPENROUTER_API_URL, {
       method: "POST",
       headers: {
-        Authorization: "Bearer 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",
+        Authorization: "Bearer sk-dd99198369aa4f048951be0879391e39",
         "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://bugun-ne-yapsam-ai.vercel.app",
         "X-Title": "Bugün Ne Yapsam AI",
         "Content-Type": "application/json",

@@ -7,62 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { generateRecipeDirect, type GenerationType } from "@/app/actions/generate-recipe-direct"
+import { generateRecipe, type GenerationType } from "@/app/actions/generate-recipe-deepseek"
 import { Loader2, ChefHat, RefreshCw, Utensils, Calendar, AlertTriangle, Sparkles } from "lucide-react"
 import { RecipeDisplay } from "./recipe-display"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-
-// Demo verileri - API çalışmazsa kullanılacak
-const DEMO_RECIPES = {
-  recipe: `## Makarna Salatası
-
-### Malzemeler
-- 200g makarna (herhangi bir çeşit)
-- 2 adet domates
-- 1 adet soğan
-- 2 yemek kaşığı zeytinyağı
-- 1 diş sarımsak
-- Tuz ve karabiber
-
-### Hazırlanışı
-1. Makarnayı paketteki talimatlara göre haşlayın.
-2. Domatesleri küp küp doğrayın.
-3. Soğanı ince ince kıyın.
-4. Sarımsağı ezin.
-5. Haşlanmış makarnayı süzün ve soğuk su altında yıkayın.
-6. Tüm malzemeleri bir kapta karıştırın.
-7. Zeytinyağı, tuz ve karabiber ekleyerek harmanlayın.
-
-### Püf Noktaları
-- Makarnayı al dente pişirirseniz salata daha lezzetli olur.
-- Servis etmeden önce 30 dakika buzdolabında bekletirseniz lezzeti artar.
-
-### Hazırlama Süresi
-- Hazırlık: 10 dakika
-- Pişirme: 15 dakika
-- Toplam: 25 dakika`,
-  mealplan: `# Günlük Yemek Planı
-
-## Kahvaltı
-- Domates ve Soğanlı Yumurta
-- Domates ve soğanlar kavrulur, üzerine yumurta kırılarak pişirilir.
-- Kullanılan malzemeler: Domates, soğan, yumurta, zeytinyağı
-
-## Öğle Yemeği
-- Makarna Salatası
-- Haşlanmış makarna, doğranmış domates ve soğanla karıştırılır, zeytinyağı ile tatlandırılır.
-- Kullanılan malzemeler: Makarna, domates, soğan, zeytinyağı, sarımsak
-
-## Akşam Yemeği
-- Domates Soslu Makarna
-- Domates ve soğan ile hazırlanan sos ile servis edilen makarna.
-- Kullanılan malzemeler: Makarna, domates, soğan, sarımsak, zeytinyağı
-
-## Ara Öğün/Atıştırmalık
-- Domates ve Soğanlı Bruschetta
-- Doğranmış domates ve soğan karışımı, zeytinyağı ile tatlandırılarak ekmek üzerinde servis edilir.
-- Kullanılan malzemeler: Domates, soğan, zeytinyağı, ekmek`,
-}
 
 export function RecipeGenerator() {
   const [ingredients, setIngredients] = useState("")
@@ -70,7 +18,6 @@ export function RecipeGenerator() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generationType, setGenerationType] = useState<GenerationType>("recipe")
-  const [isDemoMode, setIsDemoMode] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,27 +32,22 @@ export function RecipeGenerator() {
     setRecipe(null) // Clear any previous recipe
 
     try {
-      console.log("API isteği gönderiliyor...")
-      const result = await generateRecipeDirect(ingredients, generationType)
-      console.log("API yanıtı alındı:", result)
+      console.log("Tarif oluşturma isteği gönderiliyor...")
+
+      // Tarif oluştur
+      const result = await generateRecipe(ingredients, generationType)
+      console.log("Tarif oluşturma yanıtı alındı")
 
       if (result.success && result.recipe) {
         setRecipe(result.recipe)
-        setIsDemoMode(false)
       } else {
-        // API hatası durumunda demo moduna geç
-        console.log("API hatası, demo moduna geçiliyor")
-        setRecipe(DEMO_RECIPES[generationType])
-        setIsDemoMode(true)
-        setError(`API hatası: ${result.error || "Bilinmeyen hata"}. Demo mod etkinleştirildi.`)
+        setError("Tarif oluşturulurken bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
       }
-    } catch (err: any) {
-      console.error("Client error:", err)
-      // Hata durumunda demo moduna geç
-      console.log("Hata oluştu, demo moduna geçiliyor")
-      setRecipe(DEMO_RECIPES[generationType])
-      setIsDemoMode(true)
-      setError(`Hata: ${err.message || "Bilinmeyen hata"}. Demo mod etkinleştirildi.`)
+    } catch (err) {
+      // Hata nesnesini güvenli bir şekilde işle
+      const errorMessage = err instanceof Error ? err.message : "Bilinmeyen bir hata oluştu"
+      console.error("Client error:", errorMessage)
+      setError(`Tarif oluşturulurken bir hata oluştu: ${errorMessage}. Lütfen daha sonra tekrar deneyin.`)
     } finally {
       setIsLoading(false)
     }
@@ -115,7 +57,6 @@ export function RecipeGenerator() {
     setIngredients("")
     setRecipe(null)
     setError(null)
-    setIsDemoMode(false)
   }
 
   return (
@@ -130,7 +71,7 @@ export function RecipeGenerator() {
             <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-4 text-white">
               <h2 className="text-xl font-bold mb-2 flex items-center">
                 <Sparkles className="mr-2 h-5 w-5" />
-                DeepSeek AI ile Yemek Keşfi
+                Bugün Ne Yapsam AI
               </h2>
               <p className="text-sm opacity-90">
                 Gelişmiş yapay zeka teknolojisi ile elinizdeki malzemelerden harika tarifler oluşturun.
@@ -171,9 +112,9 @@ export function RecipeGenerator() {
                     Ne kadar detaylı malzeme listesi verirseniz, o kadar iyi sonuçlar alırsınız.
                   </p>
                   {error && (
-                    <Alert variant={isDemoMode ? "default" : "destructive"} className="mt-2">
+                    <Alert variant="destructive" className="mt-2">
                       <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>{isDemoMode ? "Bilgi" : "Hata"}</AlertTitle>
+                      <AlertTitle>Hata</AlertTitle>
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
@@ -225,13 +166,13 @@ export function RecipeGenerator() {
           <p className="text-lg text-gray-700">
             {generationType === "recipe" ? "Tarif oluşturuluyor..." : "Yemek planı oluşturuluyor..."}
           </p>
-          <p className="text-sm text-gray-500 mt-2">DeepSeek AI ile lezzetli öneriler hazırlanıyor.</p>
+          <p className="text-sm text-gray-500 mt-2">Yapay zeka ile lezzetli öneriler hazırlanıyor.</p>
         </div>
       )}
 
       {recipe && !isLoading && (
         <div className="mt-8">
-          <RecipeDisplay recipe={recipe} type={generationType} isDemoMode={isDemoMode} />
+          <RecipeDisplay recipe={recipe} type={generationType} />
         </div>
       )}
     </div>
