@@ -20,13 +20,8 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <head>
-        {/* Puter.js script */}
-        <Script
-          src="https://js.puter.com/v2/"
-          strategy="beforeInteractive"
-          onError={() => console.error("Puter.js yüklenemedi")}
-          onLoad={() => console.log("Puter.js başarıyla yüklendi")}
-        />
+        {/* Puter.js script - olay işleyicileri kaldırıldı */}
+        <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
       </head>
       <body className={inter.className}>{children}</body>
     </html>
